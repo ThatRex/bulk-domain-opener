@@ -12,9 +12,10 @@
 			$domainList = $domainsField
 				.split(/\r?\n/)
 				.map((line) => {
+                    line = line.trim()
 					const domainRegex = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}$/i
 					if (!domainRegex.test(line)) return ''
-					line = line.replaceAll('https://', '').replaceAll('http://', '').trim()
+					line = line.replaceAll('https://', '').replaceAll('http://', '')
 					return 'http://' + line
 				})
 				.filter((d) => d)
