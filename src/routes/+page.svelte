@@ -2,14 +2,18 @@
 	import { persisted } from 'svelte-persisted-store'
 	import { onMount } from 'svelte'
 	import { writable } from 'svelte/store'
+	import { removeRandomItems } from '$lib'
 
+	let opening = false
+	const delay = persisted('delay', 50)
+	const qty = persisted('qty', 1)
 	const domainList = persisted<string[]>('domains', [])
 	const domainsField = writable('')
 
 	onMount(() => {
 		$domainsField = $domainList.join('\n').replaceAll('https://', '').replaceAll('http://', '')
-		domainsField.subscribe(() => {
-			$domainList = $domainsField
+		domainsField.subscribe((v) => {
+			const parsed = v
 				.split(/\r?\n/)
 				.map((line) => {
 					line = line.trim()
@@ -19,15 +23,18 @@
 					return 'http://' + line
 				})
 				.filter((d) => d)
+
+			const updateQty = $qty === $domainList.length
+			$domainList = parsed
+			if (updateQty) $qty = $domainList.length
 		})
 	})
 
-	let opening = false
-	const delay = persisted('delay', 50)
+	$: $domainList = [...new Set($domainList)]
 
 	const open = async () => {
 		opening = true
-		for (const domain of $domainList) {
+		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
 			window.open(domain, '_blank', 'noopener,noreferrer')
 			await new Promise((res) => setTimeout(res, $delay))
 		}
@@ -52,12 +59,20 @@
 				}}
 			>
 				<textarea spellcheck="false" bind:value={$domainsField} />
-				<input type="range" bind:value={$delay} min="0" max="2000" step="50" />
 				<div class="flex gap-2">
-					<button class="bg-green-500" disabled={!opening && !$domainList.length}>
-						Open {$domainList.length} Domains ({$delay}ms delay)
-					</button>
+					<label>
+						<div>Amount</div>
+						<input type="range" bind:value={$qty} min="1" max={$domainList.length} step="1" />
+					</label>
+					<label>
+						<div>Delay ({$delay}ms)</div>
+						<input type="range" bind:value={$delay} min="0" max="2000" step="50" />
+					</label>
 				</div>
+				<button class="bg-blue-500 mt-1" disabled={!opening && !$domainList.length}>
+					Open {$qty}
+					{$qty !== $domainList.length ? 'Random' : ''} Domains
+				</button>
 			</form>
 		</div>
 		<div class="flex flex-col min-h-0">
@@ -85,6 +100,10 @@
 
 	p {
 		@apply mb-2 mt-1;
+	}
+
+	label {
+		@apply flex flex-col grow font-bold min-w-0;
 	}
 
 	button {
