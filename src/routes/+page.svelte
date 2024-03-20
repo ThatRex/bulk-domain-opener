@@ -7,12 +7,12 @@
 	const domainsField = writable('')
 
 	onMount(() => {
-		$domainsField = $domainList.join('\n')
+		$domainsField = $domainList.join('\n').replaceAll('https://', '').replaceAll('http://', '')
 		domainsField.subscribe(() => {
 			$domainList = $domainsField
 				.split(/\r?\n/)
 				.map((line) => {
-                    line = line.trim()
+					line = line.trim()
 					const domainRegex = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}$/i
 					if (!domainRegex.test(line)) return ''
 					line = line.replaceAll('https://', '').replaceAll('http://', '')
@@ -23,12 +23,14 @@
 	})
 
 	let opening = false
+	const delay = persisted('delay', 100)
 
 	const open = async () => {
 		opening = true
 		for (const domain of $domainList) {
-			window.open(domain)
-			await new Promise((res) => setTimeout(res, 250))
+			window.open(domain, '_blank', 'noopener,noreferrer')
+			await new Promise((res) => setTimeout(res, $delay))
+			if (!opening) break
 		}
 		opening = false
 	}
@@ -43,11 +45,20 @@
 		<div class="flex flex-col min-h-0">
 			<h1>Domains</h1>
 			<p>One domain per line.</p>
-			<form class="flex flex-col gap-1">
-				<textarea bind:value={$domainsField} /><br />
-				<button type="submit" disabled={!opening && !$domainList.length} on:click={open}>
-					Open {$domainList.length} Domains
-				</button>
+			<form
+				class="flex flex-col gap-2"
+				on:submit={(e) => {
+					e.preventDefault()
+					if (!opening) open()
+				}}
+			>
+				<textarea spellcheck="false" bind:value={$domainsField} />
+				<input type="range" bind:value={$delay} min="0" max="2000" step="100" />
+				<div class="flex gap-2">
+					<button class="bg-green-500" disabled={!opening && !$domainList.length}>
+						Open {$domainList.length} Domains ({$delay}ms delay)
+					</button>
+				</div>
 			</form>
 		</div>
 		<div class="flex flex-col min-h-0">
@@ -73,8 +84,8 @@
 		@apply text-3xl font-bold;
 	}
 
-	button[type='submit'] {
-		@apply flex grow justify-center p-2 bg-blue-500 rounded-md text-white font-bold;
+	button {
+		@apply flex grow justify-center p-2 rounded-md text-white font-bold items-center;
 		&:disabled {
 			@apply bg-neutral-500;
 		}
