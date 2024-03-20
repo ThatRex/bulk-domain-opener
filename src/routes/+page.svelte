@@ -23,14 +23,13 @@
 	})
 
 	let opening = false
-	const delay = persisted('delay', 100)
+	const delay = persisted('delay', 50)
 
 	const open = async () => {
 		opening = true
 		for (const domain of $domainList) {
 			window.open(domain, '_blank', 'noopener,noreferrer')
 			await new Promise((res) => setTimeout(res, $delay))
-			if (!opening) break
 		}
 		opening = false
 	}
@@ -53,7 +52,7 @@
 				}}
 			>
 				<textarea spellcheck="false" bind:value={$domainsField} />
-				<input type="range" bind:value={$delay} min="0" max="2000" step="100" />
+				<input type="range" bind:value={$delay} min="0" max="2000" step="50" />
 				<div class="flex gap-2">
 					<button class="bg-green-500" disabled={!opening && !$domainList.length}>
 						Open {$domainList.length} Domains ({$delay}ms delay)
@@ -82,6 +81,10 @@
 
 	h1 {
 		@apply text-3xl font-bold;
+	}
+
+	p {
+		@apply mb-2 mt-1;
 	}
 
 	button {
