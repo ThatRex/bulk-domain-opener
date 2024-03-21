@@ -35,20 +35,12 @@
 	const open = async () => {
 		opening = true
 
-		let body = ''
-
 		let count = 0
 		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
-			body =
-				body +
-				`setTimeout(() => window.open('${domain}', '_blank', 'noopener,noreferrer'), ${count * $delay})\n`
+			setTimeout(() => window.open(domain, '_blank', 'noopener,noreferrer'), count * $delay)
 			count++
 		}
-		body = body + `setTimeout(callback, ${count * $delay})\n`
-
-		const op = new Function('callback', body)
-
-		op(() => (opening = false))
+		setTimeout(() => (opening = false), count * $delay)
 	}
 </script>
 
