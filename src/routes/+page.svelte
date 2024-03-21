@@ -37,13 +37,16 @@
 
 		let body = ''
 
+		let count = 0
 		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
-			body = body + `window.open('${domain}', '_blank', 'noopener,noreferrer')\n`
-			if ($delay) body = body + `await new Promise((res) => setTimeout(res, delay))\n`
-			body = body + `callback()\n`
+			body =
+				body +
+				`setTimeout(() => window.open('${domain}', '_blank', 'noopener,noreferrer'), ${count * $delay})\n`
+			count++
 		}
+		body = body + `setTimeout(callback, ${count * $delay})\n`
 
-		const op = new Function('delay', 'callback', body)
+		const op = new Function('callback', body)
 
 		op($delay, () => (opening = false))
 	}
