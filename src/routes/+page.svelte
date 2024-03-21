@@ -34,11 +34,18 @@
 
 	const open = async () => {
 		opening = true
+
+		let body = ''
+
 		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
-			window.open(domain, '_blank', 'noopener,noreferrer')
-			await new Promise((res) => setTimeout(res, $delay))
+			body = body + `window.open('${domain}', '_blank', 'noopener,noreferrer')\n`
+			if ($delay) body = body + `await new Promise((res) => setTimeout(res, delay))\n`
+			body = body + `callback()\n`
 		}
-		opening = false
+
+		const op = new Function('delay', 'callback', body)
+
+		op($delay, () => (opening = false))
 	}
 </script>
 
