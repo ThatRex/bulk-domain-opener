@@ -48,7 +48,7 @@
 
 		const op = new Function('callback', body)
 
-		op($delay, () => (opening = false))
+		op(() => (opening = false))
 	}
 </script>
 
