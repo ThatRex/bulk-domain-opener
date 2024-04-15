@@ -4,8 +4,7 @@
 	import { writable } from 'svelte/store'
 	import { removeRandomItems } from '$lib'
 
-	let opening = false
-	const delay = persisted('delay', 50)
+	let disabled = false
 	const qty = persisted('qty', 1)
 	const domainList = persisted<string[]>('domains', [])
 	const domainsField = writable('')
@@ -33,12 +32,15 @@
 	$: $domainList = [...new Set($domainList)]
 
 	const open = async () => {
-		opening = true
+		let body = ''
+
 		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
-			window.open(domain, '_blank', 'noopener,noreferrer')
-			await new Promise((res) => setTimeout(res, $delay))
+			body = body + `window.open('${domain}', '_blank', 'noopener,noreferrer');`
 		}
-		opening = false
+
+		const op = new Function(body)
+
+		op()
 	}
 </script>
 
@@ -52,24 +54,20 @@
 			<h1>Domains</h1>
 			<p>One domain per line.</p>
 			<form
-				class="flex flex-col gap-2"
+				class="flex flex-col gap-0.5"
 				on:submit={(e) => {
 					e.preventDefault()
-					if (!opening) open()
+					open()
+					disabled = true
+					setTimeout(() => (disabled = false), 1000)
 				}}
 			>
 				<textarea spellcheck="false" bind:value={$domainsField} />
-				<div class="flex gap-2">
-					<label>
-						<div>Amount</div>
-						<input type="range" bind:value={$qty} min="1" max={$domainList.length} step="1" />
-					</label>
-					<label>
-						<div>Delay ({$delay}ms)</div>
-						<input type="range" bind:value={$delay} min="0" max="2000" step="50" />
-					</label>
-				</div>
-				<button class="bg-blue-500 mt-1" disabled={!opening && !$domainList.length}>
+				<label>
+					<div>Amount</div>
+					<input type="range" bind:value={$qty} min="1" max={$domainList.length} step="1" />
+				</label>
+				<button class="bg-blue-500 mt-1.5" disabled={disabled || !$domainList.length}>
 					Open {$qty}
 					{$qty !== $domainList.length ? 'Random' : ''} Domains
 				</button>
@@ -109,7 +107,7 @@
 	button {
 		@apply flex grow justify-center p-2 rounded-md text-white font-bold items-center;
 		&:disabled {
-			@apply bg-neutral-500;
+			@apply !bg-neutral-500;
 		}
 	}
 
