@@ -15,11 +15,11 @@
 
 	const parser = (i: string) => {
 		const res = regex.exec(i)
-		return res ? 'http://' + res[2] : ''
+		return res ? res[2] : ''
 	}
 
 	field.subscribe((v) => {
-		const update = $qty === list.length
+		const update = $qty >= list.length
 		const parsed = v
 			.split(/\r?\n/)
 			.map(parser)
@@ -32,13 +32,17 @@
 	const open = async () => {
 		let body = ''
 
+		body += 'return (async () => {'
 		for (const i of removeRandomItems(list, list.length - $qty)) {
-			body += `window.open('${i}', '_blank', 'noopener,noreferrer');`
+			body += `window.open('http://${i}', '_blank', 'noopener,noreferrer');`
 		}
+		body += '})'
 
-		const op = new Function(body)
+		const op = new Function(body)()
 
-		op()
+		disabled = true
+		await op()
+		disabled = false
 	}
 </script>
 
@@ -56,8 +60,6 @@
 				onsubmit={(e) => {
 					e.preventDefault()
 					open()
-					disabled = true
-					setTimeout(() => (disabled = false), 1000)
 				}}
 			>
 				<textarea spellcheck="false" bind:value={$field}></textarea>
