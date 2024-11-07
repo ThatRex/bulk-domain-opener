@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment'
 	import { persisted } from 'svelte-persisted-store'
 	import { removeRandomItems } from '$lib'
 
@@ -7,11 +8,9 @@
 	// G3 = domain
 	// G5 = path
 
-	let disabled = $state(false)
-	let list = $state<string[]>([])
-
 	const field = persisted('field', '')
-	const qty = persisted('qty', 1)
+	const list = persisted<string[]>('list', [])
+	const qty = persisted('qty', 0)
 
 	const parser = (i: string) => {
 		const res = regex.exec(i)
@@ -19,30 +18,25 @@
 	}
 
 	field.subscribe((v) => {
-		const update = $qty >= list.length
 		const parsed = v
 			.split(/\r?\n/)
 			.map(parser)
 			.filter((i) => i)
 
-		list = [...new Set(parsed)]
-		if (update) $qty = list.length
+		$list = [...new Set(parsed)]
+
+		const update = $qty >= $list.length
+		if (update) $qty = $list.length
 	})
 
 	const open = async () => {
 		let body = ''
 
-		body += 'return (async () => {'
-		for (const i of removeRandomItems(list, list.length - $qty)) {
+		for (const i of removeRandomItems($list, $list.length - $qty)) {
 			body += `window.open('http://${i}', '_blank', 'noopener,noreferrer');`
 		}
-		body += '})'
 
-		const op = new Function(body)()
-
-		disabled = true
-		await op()
-		disabled = false
+		new Function(body)()
 	}
 </script>
 
@@ -65,11 +59,15 @@
 				<textarea spellcheck="false" bind:value={$field}></textarea>
 				<label>
 					<div>Amount</div>
-					<input type="range" bind:value={$qty} min="1" max={list.length} step="1" />
+					{#if browser}
+						<input type="range" bind:value={$qty} min="1" max={$list.length} step="1" />
+					{:else}
+						<input type="range" disabled />
+					{/if}
 				</label>
-				<button class="bg-blue-500 mt-1.5" disabled={disabled || !list.length}>
+				<button class="bg-blue-500 mt-1.5" disabled={!$list.length}>
 					Open {$qty}
-					{$qty !== list.length ? 'Random' : ''} Domains
+					{$qty !== $list.length ? 'Random' : ''} Domains
 				</button>
 			</form>
 		</div>
@@ -78,7 +76,7 @@
 			<p>Parsed Domain list.</p>
 			<div class="border-2 flex grow rounded-md py-1 px-1.5 h-0 overflow-auto">
 				<div class="grid grid-cols-1 content-start">
-					{#each list as domain}
+					{#each $list as domain}
 						<div>{domain}</div>
 					{/each}
 				</div>
