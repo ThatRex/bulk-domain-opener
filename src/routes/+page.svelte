@@ -2,34 +2,38 @@
 	import { persisted } from 'svelte-persisted-store'
 	import { removeRandomItems } from '$lib'
 
+	const regex = /(https?:\/\/)?((([\w\-]+\.)+[\w\-]{2,})([\w\/]+)?)/i
+	// G2 = domain & path
+	// G3 = domain
+	// G5 = path
+
 	let disabled = $state(false)
 	let list = $state<string[]>([])
 
 	const field = persisted('field', '')
 	const qty = persisted('qty', 1)
 
+	const parser = (i: string) => {
+		const res = regex.exec(i)
+		return res ? 'http://' + res[2] : ''
+	}
+
 	field.subscribe((v) => {
+		const update = $qty === list.length
 		const parsed = v
 			.split(/\r?\n/)
-			.map((line) => {
-				line = line.trim()
-				const regex = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}$/i
-				if (!regex.test(line)) return ''
-				line = line.replaceAll('https://', '').replaceAll('http://', '')
-				return 'http://' + line
-			})
-			.filter((d) => d)
+			.map(parser)
+			.filter((i) => i)
 
-		const updateQty = $qty === list.length
 		list = [...new Set(parsed)]
-		if (updateQty) $qty = list.length
+		if (update) $qty = list.length
 	})
 
 	const open = async () => {
 		let body = ''
 
-		for (const domain of removeRandomItems(list, list.length - $qty)) {
-			body = body + `window.open('${domain}', '_blank', 'noopener,noreferrer');`
+		for (const i of removeRandomItems(list, list.length - $qty)) {
+			body += `window.open('${i}', '_blank', 'noopener,noreferrer');`
 		}
 
 		const op = new Function(body)
