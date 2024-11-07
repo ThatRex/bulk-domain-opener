@@ -1,40 +1,34 @@
 <script lang="ts">
 	import { persisted } from 'svelte-persisted-store'
-	import { onMount } from 'svelte'
-	import { writable } from 'svelte/store'
 	import { removeRandomItems } from '$lib'
 
-	let disabled = false
+	let disabled = $state(false)
+	let list = $state<string[]>([])
+
+	const field = persisted('field', '')
 	const qty = persisted('qty', 1)
-	const domainList = persisted<string[]>('domains', [])
-	const domainsField = writable('')
 
-	onMount(() => {
-		$domainsField = $domainList.join('\n').replaceAll('https://', '').replaceAll('http://', '')
-		domainsField.subscribe((v) => {
-			const parsed = v
-				.split(/\r?\n/)
-				.map((line) => {
-					line = line.trim()
-					const domainRegex = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}$/i
-					if (!domainRegex.test(line)) return ''
-					line = line.replaceAll('https://', '').replaceAll('http://', '')
-					return 'http://' + line
-				})
-				.filter((d) => d)
+	field.subscribe((v) => {
+		const parsed = v
+			.split(/\r?\n/)
+			.map((line) => {
+				line = line.trim()
+				const regex = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}$/i
+				if (!regex.test(line)) return ''
+				line = line.replaceAll('https://', '').replaceAll('http://', '')
+				return 'http://' + line
+			})
+			.filter((d) => d)
 
-			const updateQty = $qty === $domainList.length
-			$domainList = parsed
-			if (updateQty) $qty = $domainList.length
-		})
+		const updateQty = $qty === list.length
+		list = [...new Set(parsed)]
+		if (updateQty) $qty = list.length
 	})
-
-	$: $domainList = [...new Set($domainList)]
 
 	const open = async () => {
 		let body = ''
 
-		for (const domain of removeRandomItems($domainList, $domainList.length - $qty)) {
+		for (const domain of removeRandomItems(list, list.length - $qty)) {
 			body = body + `window.open('${domain}', '_blank', 'noopener,noreferrer');`
 		}
 
@@ -55,21 +49,21 @@
 			<p>One domain per line.</p>
 			<form
 				class="flex flex-col gap-0.5"
-				on:submit={(e) => {
+				onsubmit={(e) => {
 					e.preventDefault()
 					open()
 					disabled = true
 					setTimeout(() => (disabled = false), 1000)
 				}}
 			>
-				<textarea spellcheck="false" bind:value={$domainsField} />
+				<textarea spellcheck="false" bind:value={$field}></textarea>
 				<label>
 					<div>Amount</div>
-					<input type="range" bind:value={$qty} min="1" max={$domainList.length} step="1" />
+					<input type="range" bind:value={$qty} min="1" max={list.length} step="1" />
 				</label>
-				<button class="bg-blue-500 mt-1.5" disabled={disabled || !$domainList.length}>
+				<button class="bg-blue-500 mt-1.5" disabled={disabled || !list.length}>
 					Open {$qty}
-					{$qty !== $domainList.length ? 'Random' : ''} Domains
+					{$qty !== list.length ? 'Random' : ''} Domains
 				</button>
 			</form>
 		</div>
@@ -78,7 +72,7 @@
 			<p>Parsed Domain list.</p>
 			<div class="border-2 flex grow rounded-md py-1 px-1.5 h-0 overflow-auto">
 				<div class="grid grid-cols-1 content-start">
-					{#each $domainList as domain}
+					{#each list as domain}
 						<div>{domain}</div>
 					{/each}
 				</div>
