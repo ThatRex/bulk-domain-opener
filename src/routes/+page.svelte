@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { browser } from '$app/environment'
+	import { browser, dev } from '$app/environment'
 	import { persisted } from 'svelte-persisted-store'
 	import { removeRandomItems } from '$lib'
 
@@ -9,7 +9,7 @@
 	// G5 = path
 
 	const field = persisted('field', '')
-	const list = persisted<string[]>('list', [])
+	const list = persisted<{ open: boolean; site: string }[]>('list', [])
 	const qty = persisted('qty', 0)
 
 	const parser = (i: string) => {
@@ -23,20 +23,36 @@
 			.map(parser)
 			.filter((i) => i)
 
-		$list = [...new Set(parsed)]
+		$list = [...new Set(parsed)].map((site) => ({ open: true, site }))
 
 		const update = $qty >= $list.length
 		if (update) $qty = $list.length
 	})
 
-	const open = async () => {
-		let body = ''
+	const open = () => {
+		const toOpenCandidates = $list.filter(({ open }) => open).map((v) => v.site)
+		const toOpen = removeRandomItems(toOpenCandidates, toOpenCandidates.length - $qty)
 
-		for (const i of removeRandomItems($list, $list.length - $qty)) {
-			body += `window.open('http://${i}', '_blank', 'noopener,noreferrer');`
+		$list = $list.map((v) => {
+			const found = !!toOpen.find((s) => s === v.site)
+			v.open = found ? false : v.open
+			return v
+		})
+
+		let body = ''
+		for (const s of toOpen) {
+			body += `window.open('http://${s}', '_blank', 'noopener,noreferrer');`
 		}
 
-		new Function(body)()
+		console.debug(body.replaceAll(';', '\n'))
+		dev || new Function(body)()
+	}
+
+	const reset = () => {
+		$list = $list.map((v) => {
+			v.open = true
+			return v
+		})
 	}
 </script>
 
@@ -44,20 +60,18 @@
 	<title>Bulk Domain Opener</title>
 </svelte:head>
 
-<div class="wrapper">
-	<div class="grid grid-cols-2 gap-2">
+<div class="mx-auto max-w-5xl p-6 h-svh">
+	<div class="grid grid-cols-2 gap-2 h-full">
 		<div class="flex flex-col min-h-0">
 			<h1>Domains</h1>
 			<p>One domain per line.</p>
-			<form
-				class="flex flex-col gap-0.5"
-				onsubmit={(e) => {
-					e.preventDefault()
-					open()
-				}}
-			>
-				<textarea spellcheck="false" bind:value={$field}></textarea>
-				<label>
+			<div class="flex flex-col gap-0.5 grow">
+				<textarea
+					class="h-full resize-none border-2 rounded-md py-1 px-1.5"
+					spellcheck="false"
+					bind:value={$field}
+				></textarea>
+				<label class="flex flex-col grow font-bold min-w-0">
 					<div>Amount</div>
 					{#if browser}
 						<input type="range" bind:value={$qty} min="1" max={$list.length} step="1" />
@@ -65,31 +79,33 @@
 						<input type="range" disabled />
 					{/if}
 				</label>
-				<button class="bg-blue-500 mt-1.5" disabled={!$list.length}>
+				<button
+					class="bg-blue-500 mt-1.5"
+					disabled={!$list.length || !$list.filter(({ open }) => open).length}
+					onclick={open}
+				>
 					Open {$qty}
 					{$qty !== $list.length ? 'Random' : ''} Domains
 				</button>
-			</form>
+				<button class="bg-blue-500 mt-1.5" onclick={reset}>Reset</button>
+			</div>
 		</div>
 		<div class="flex flex-col min-h-0">
 			<h1>Parsed</h1>
 			<p>Parsed Domain list.</p>
-			<div class="border-2 flex grow rounded-md py-1 px-1.5 h-0 overflow-auto">
-				<div class="grid grid-cols-1 content-start">
-					{#each $list as domain}
-						<div>{domain}</div>
-					{/each}
-				</div>
+			<div class="border-2 flex flex-col grow rounded-md py-1 px-1.5 h-0 overflow-auto">
+				{#each $list as { open, site }}
+					<label class="flex gap-2 items-center">
+						<input type="checkbox" bind:checked={open} />
+						<div>{site}</div>
+					</label>
+				{/each}
 			</div>
 		</div>
 	</div>
 </div>
 
 <style lang="postcss">
-	.wrapper {
-		@apply mx-auto max-w-5xl m-6 px-2;
-	}
-
 	h1 {
 		@apply text-3xl font-bold;
 	}
@@ -98,18 +114,10 @@
 		@apply mb-2 mt-1;
 	}
 
-	label {
-		@apply flex flex-col grow font-bold min-w-0;
-	}
-
 	button {
 		@apply flex grow justify-center p-2 rounded-md text-white font-bold items-center;
 		&:disabled {
 			@apply !bg-neutral-500;
 		}
-	}
-
-	textarea {
-		@apply border-2 rounded-md py-1 px-1.5 h-96;
 	}
 </style>
